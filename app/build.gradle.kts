@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.etfrogers.temp"
+    namespace = "com.etfrogers.ecoforestklient"
     compileSdk = 34
 
     defaultConfig {

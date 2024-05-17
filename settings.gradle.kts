@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "KJLR"
+rootProject.name = "EcoForestKlient"
 include(":app")
-include(":KJLR")
+include(":EcoForestKlient")
