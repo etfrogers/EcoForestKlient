@@ -9,7 +9,6 @@ import kotlinx.serialization.json.Json
 import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.Response
 import java.io.File
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
@@ -21,7 +20,7 @@ import javax.net.ssl.X509TrustManager
 
 const val CSV_DATE_FORMAT = "%Y/%m/%d %H:%M:%S"
 
-class EcoForestKlient(
+class EcoForestClient(
     private val server: String,
     private val port: String,
     private val serialNumber: String,
@@ -31,7 +30,6 @@ class EcoForestKlient(
 ) {
 
     private var rawRegisterValues: MutableMap<Int, Int> = mutableMapOf()
-    private val status: Map<String, Any> = mapOf()
     private val client: OkHttpClient
 
     init {
@@ -135,9 +133,9 @@ class EcoForestKlient(
         return UnitValue(uValue.value.toFloat() / 10, uValue.unit)
     }
 
-    internal fun getBoolRegisterValue(name: String): UnitValue<Boolean> {
+    internal fun getBoolRegisterValue(name: String): Boolean {
         val uValue = getIntRegisterValue(name)
-        return UnitValue(uValue.value != 0, uValue.unit)
+        return uValue.value != 0
     }
 
     private fun findPage(
@@ -155,7 +153,7 @@ class EcoForestKlient(
         throw RegisterPageNotFoundException("No register found for type $type and index $index")
     }
 
-    fun getCurrentStatus(): Status {
+    fun getCurrentStatus(): EcoforestStatus {
         clearRegisterCache()
         return buildStatus(this)
     }
@@ -184,6 +182,7 @@ private val STATUS_DATAPOINTS = mapOf(
     "electricalPower" to StatusDatapoint("electricalPower", "e_elect", RegisterType.INT, 81, "W", true),
     "dhwActualTemp" to StatusDatapoint("dhwActualTemp", "temp_acum_acs", RegisterType.FLOAT, 8, "ºC", true),
     "dhwSetpoint" to StatusDatapoint("dhwSetpoint", "consigna_acs", RegisterType.FLOAT, 214, "ºC", true),
+    "dhwOffset" to StatusDatapoint("dhwOffset", "offset", RegisterType.FLOAT, 15, "ºC", true),
     "outsideTemp" to StatusDatapoint("outsideTemp", "temp_exterior", RegisterType.FLOAT, 11, "ºC", true),
     "heatingBufferSetpoint" to StatusDatapoint("heatingBufferSetpoint", "set_inercia_heat", RegisterType.FLOAT, 215, "ºC", true),
     "heatingBufferActualTemp" to StatusDatapoint("heatingBufferActualTemp", "temp_dep_heat", RegisterType.FLOAT, 200, "ºC", true),
@@ -194,24 +193,26 @@ private val STATUS_DATAPOINTS = mapOf(
 )
 
 data class UnitValue<T> (val value: T, val unit: String = "")
-data class Status(
-    val electricalPower: UnitValue<Int>, // = UnitValue(0),
-    val dhwActualTemp: UnitValue<Float>, // = UnitValue(0f),
-    val dhwSetpoint: UnitValue<Float>, // = UnitValue(0f),
-    val outsideTemp: UnitValue<Float>, // = UnitValue(0f),
-    val heatingBufferActualTemp: UnitValue<Float>, // = UnitValue(0f),
-    val heatingBufferSetpoint: UnitValue<Float>, // = UnitValue(0f),
-    val heatingBufferOffset: UnitValue<Float>, // = UnitValue(0f),
-    val isHeatingOn: UnitValue<Boolean>, // = UnitValue(false),
-    val isHeatingDemand: UnitValue<Boolean>, // = UnitValue(false),
-    val isDHWDemand: UnitValue<Boolean>, // = UnitValue(false),
+data class EcoforestStatus(
+    val electricalPower: UnitValue<Int> = UnitValue(0),
+    val dhwActualTemp: UnitValue<Float> = UnitValue(0f),
+    val dhwSetpoint: UnitValue<Float> = UnitValue(0f),
+    val dhwOffset: UnitValue<Float> = UnitValue(0f),
+    val outsideTemp: UnitValue<Float> = UnitValue(0f),
+    val heatingBufferActualTemp: UnitValue<Float> = UnitValue(0f),
+    val heatingBufferSetpoint: UnitValue<Float> = UnitValue(0f),
+    val heatingBufferOffset: UnitValue<Float> = UnitValue(0f),
+    val isHeatingOn: Boolean = false,
+    val isHeatingDemand: Boolean = false,
+    val isDHWDemand: Boolean = false,
     )
 
-internal fun buildStatus(client: EcoForestKlient): Status {
-    return Status(
+internal fun buildStatus(client: EcoForestClient): EcoforestStatus {
+    return EcoforestStatus(
         electricalPower = client.getIntRegisterValue("electricalPower"),
         dhwActualTemp = client.getFloatRegisterValue("dhwActualTemp"),
         dhwSetpoint = client.getFloatRegisterValue("dhwSetpoint"),
+        dhwOffset = client.getFloatRegisterValue("dhwOffset"),
         outsideTemp = client.getFloatRegisterValue("outsideTemp"),
         heatingBufferActualTemp = client.getFloatRegisterValue("heatingBufferActualTemp"),
         heatingBufferSetpoint = client.getFloatRegisterValue("heatingBufferSetpoint"),
@@ -279,7 +280,7 @@ fun OkHttpClient.Builder.ignoreAllSSLErrors(): OkHttpClient.Builder {
 fun main(){
     val text = File("config.json").readText()
     val config = Json.decodeFromString<EcoForestConfig>(text)
-    val client = EcoForestKlient(
+    val client = EcoForestClient(
         server = config.server,
         port = config.port,
         serialNumber = config.serialNumber,
