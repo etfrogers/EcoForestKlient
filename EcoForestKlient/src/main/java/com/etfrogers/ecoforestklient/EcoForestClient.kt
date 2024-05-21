@@ -4,6 +4,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.format
 import kotlinx.datetime.format.char
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import okhttp3.FormBody
@@ -12,6 +13,7 @@ import okhttp3.Request
 import java.io.File
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
+import java.util.concurrent.TimeUnit
 import javax.net.ssl.HostnameVerifier
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
@@ -253,11 +255,11 @@ private val REGISTER_PAGES = listOf(
 )
 
 @Serializable
-internal data class EcoForestConfig(
+data class EcoForestConfig(
     val server: String,
     val port: String,
-    val serialNumber: String,
-    val authKey: String,
+    @SerialName("serial-number") val serialNumber: String,
+    @SerialName("auth-key") val authKey: String,
 )
 
 fun OkHttpClient.Builder.ignoreAllSSLErrors(): OkHttpClient.Builder {
