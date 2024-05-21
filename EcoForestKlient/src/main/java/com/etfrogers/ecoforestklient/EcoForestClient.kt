@@ -36,6 +36,7 @@ class EcoForestClient(
 
     init {
         var builder = OkHttpClient.Builder()
+            .connectTimeout(10, TimeUnit.SECONDS)
         if (debugSSL) {
             builder = builder.ignoreAllSSLErrors()
         }
