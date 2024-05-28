@@ -87,13 +87,18 @@ class EcoForestClient(
         val status = tokens[0]
         val payload = tokens[1]
         val (msg, errorCode) = status.split("=")
-        if (page.type == RegisterType.BOOL) {
-            assert(msg == "error_geo_get_bit")
+        val expectedMessage = if (page.type == RegisterType.BOOL) {
+            "error_geo_get_bit"
         } else {
-            assert(msg == "error_geo_get_reg")
+            "error_geo_get_reg"
+        }
+        if (msg != expectedMessage) {
+            throw ServerCommsException("Error getting Ecoforest register (index: ${page.firstRegister}, " +
+                    "length:${page.numberOfRegisters}, type: ${page.type}) " +
+                    " - Expected message: ${expectedMessage}, Actual Message: {$msg}')")
         }
         if (errorCode != "0") {
-            throw RuntimeException(
+            throw ServerCommsException(
                 "Error getting Ecoforest register (index: ${page.firstRegister}, " +
                         "length:${page.numberOfRegisters}, type: ${page.type}) - Error code: ${errorCode}')"
             )
@@ -102,9 +107,16 @@ class EcoForestClient(
         val dir = payloadTokens[0]
         val num = payloadTokens[1]
         val binaryData = payloadTokens.drop(2)
-        assert(dir == "dir=${page.firstRegister}")
-        assert(num == "num=${page.numberOfRegisters}")
-        assert (binaryData.size == page.numberOfRegisters)
+        if (!(dir == "dir=${page.firstRegister}"
+              && num == "num=${page.numberOfRegisters}"
+              && binaryData.size == page.numberOfRegisters))
+        {
+            throw ServerCommsException(
+                "Error getting Ecoforest data (index: $dir, expected ${page.firstRegister}, " +
+                        "length:$num, reported: ${page.numberOfRegisters}, " +
+                        "actual: ${binaryData.size})')"
+            )
+        }
         for (i in 0..<page.numberOfRegisters) {
             rawRegisterValues[page.firstRegister + i] = binaryData[i].hexToInt()
         }
@@ -228,6 +240,7 @@ internal fun buildStatus(client: EcoForestClient): EcoforestStatus {
 
 
 class RegisterPageNotFoundException(message:String): Exception(message)
+class ServerCommsException(message:String): Exception(message)
 
 internal data class RegisterPage(
     val firstRegister: Int,
