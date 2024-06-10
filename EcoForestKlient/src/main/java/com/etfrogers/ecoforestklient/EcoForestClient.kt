@@ -1,9 +1,14 @@
 package com.etfrogers.ecoforestklient
 
+import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.format
+import kotlinx.datetime.format.DateTimeComponents
 import kotlinx.datetime.format.char
+import kotlinx.datetime.minus
+import kotlinx.datetime.plus
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -20,14 +25,18 @@ import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
 
 
-const val CSV_DATE_FORMAT = "%Y/%m/%d %H:%M:%S"
+private val CSV_DATE_FORMAT = DateTimeComponents.Format {
+    year(); char('/'); monthNumber(); char('/'); dayOfMonth()
+    char(' ')
+    hour(); char(':'); minute(); char(':'); second();
+}
 
 class EcoForestClient(
     private val server: String,
     private val port: String,
     private val serialNumber: String,
     private val authKey: String,
-    private val timezone: TimeZone? = null,
+    private val timezone: TimeZone = TimeZone.UTC,
     debugSSL: Boolean = false
 ) {
 
@@ -172,12 +181,109 @@ class EcoForestClient(
         clearRegisterCache()
         return buildStatus(this)
     }
+
+    fun getHistoryForDateRange(startDate: LocalDate, endDate: LocalDate): CompositeDataSet {
+        return CompositeDataSet(timezone,
+            dateRange(startDate, endDate).map{ getHistoryForDate(it) })
+    }
+
+    fun getHistoryForMonth(year: Int, month: Int): MonthDataSet {
+        val composite = getHistoryForDateRange(
+            LocalDate(year, month, 1),
+            LocalDate(year, month, 1) + DatePeriod(months = 1) - DatePeriod(days=1)
+        )
+        return MonthDataSet(timezone, composite.datasets)
+    }
+
+    fun getHistoryForDate(date: LocalDate): DayData {
+        val useCache = false
+        if (useCache) {
+            TODO("Caching not implemented")
+            /*
+        cache_file = self._history_cache_file(date)
+        try :
+            with open (cache_file) as file:
+            contents = file.read()
+            except FileNotFoundError :
+            contents = self.get_history_data_from_server(date)
+            if contents and date != datetime.datetime.today().date():
+            # do not cache today's data as it will change
+            with open (cache_file, 'w') as file:
+            file.write(contents)
+            */
+        }
+        else {
+            val contents = getHistoryDataFromServer(date)
+            val (timestamps, fullData) = processFileData(contents, timezone)
+            return DayData(timezone, timestamps, fullData)
+        }
+    }
+
+
+//    def _history_cache_file(date: datetime.date):
+//        data_dir = pathlib.Path('cache/ecoforest')
+//        return data_dir / f'{EcoforestClient.date_str(date)}.csv'
+
+    private fun getHistoryDataFromServer(date: LocalDate): String {
+        val dataDir = "historic"
+        val filename = "${dateStr(date)}_${serialNumber}_1_historico.csv"
+//        try {
+            val response = apiRequest("${dataDir}/${filename}")
+//        } catch (e: )
+//            except requests . exceptions . HTTPError :
+//            if response.status_code == 404:
+//            return ''
+//            else:
+//            raise
+        return response
+    }
+    companion object {
+        fun processFileData(
+            contents: String,
+            timezone: TimeZone? = null
+        ): Pair<List<LocalDateTime>, List<List<Float>>> {
+            val tokens = contents.lines()
+            val headers = tokens[0]
+            val lines = tokens.drop(1)
+            val timestamps: MutableList<LocalDateTime> = mutableListOf()
+            val data: MutableList<List<Float>> = mutableListOf()
+            lines.forEachIndexed { i, line ->
+                if (line.isNotEmpty()) {
+                    val entries = line.split(';').dropLast(1)
+                    //entry 0 is not of interest
+                    val timestamp = CSV_DATE_FORMAT.parse(entries[1]).toLocalDateTime()
+                    val lineData = entries.drop(2).map { it.toFloat() / 10 }
+                    timestamps.add(timestamp)
+                    data.add(lineData)
+                }
+            }
+            return Pair(timestamps, data.transpose())
+        }
+
+    }
 }
 
 internal fun dateStr(date: LocalDate): String{
     return date.format(LocalDate.Format {
         year(); char('-'); monthNumber(); char('-'); dayOfMonth()
     })
+}
+
+internal fun dateRange(startDate: LocalDate, endDate: LocalDate): List<LocalDate> {
+    var date = startDate
+    val dates: MutableList<LocalDate> = mutableListOf()
+    while (date <= endDate) {
+        dates.add(date)
+        date = date + DatePeriod(months = 1) - DatePeriod(days = 1)
+    }
+    return dates
+}
+
+/**
+ * Given a list of lists (ie a matrix), transpose it
+ */
+internal fun <T>List<List<T>>.transpose(): List<List<T>> {
+    return (this[0].indices).map { i -> (this.indices).map { j -> this[j][i] } }
 }
 
 internal enum class RegisterType {
@@ -312,6 +418,9 @@ fun main(){
 //    val response = client.readRegisterPage(REGISTER_PAGES[3])
     val response = client.getCurrentStatus()
     println(response)
+
+    val dayData = client.getHistoryForDate(LocalDate(2024, 4,1))
+    println(dayData.chunks())
 //    println(response.body!!.string())
 }
 
