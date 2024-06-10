@@ -15,6 +15,8 @@ import kotlinx.serialization.json.Json
 import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.tls.HandshakeCertificates
+import okhttp3.tls.decodeCertificatePem
 import java.io.File
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
@@ -48,6 +50,15 @@ class EcoForestClient(
             .connectTimeout(10, TimeUnit.SECONDS)
         if (debugSSL) {
             builder = builder.ignoreAllSSLErrors()
+        } else {
+            val easyNetCertificate = File("easynet2.ecoforest.es.cer").readText().decodeCertificatePem()
+            val certificates =
+                HandshakeCertificates.Builder()
+                    .addTrustedCertificate(easyNetCertificate)
+                    // Uncomment if standard certificates are also required.
+                     .addPlatformTrustedCertificates()
+                    .build()
+            builder.sslSocketFactory(certificates.sslSocketFactory(), certificates.trustManager)
         }
         client = builder.build()
     }
@@ -407,7 +418,7 @@ fun main(){
         port = config.port,
         serialNumber = config.serialNumber,
         authKey = config.authKey,
-        debugSSL = true,
+        debugSSL = false,
     )
 
     val endpoint = "recepcion_datos_4.cgi"
