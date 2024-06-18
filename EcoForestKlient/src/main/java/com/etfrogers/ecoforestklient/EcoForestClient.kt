@@ -225,7 +225,7 @@ class EcoForestClient(
         }
         else {
             val contents = getHistoryDataFromServer(date)
-            val (timestamps, fullData) = processFileData(contents, timezone)
+            val (timestamps, fullData) = processFileData(contents)
             return DayData(timezone, timestamps, fullData)
         }
     }
@@ -251,14 +251,12 @@ class EcoForestClient(
     companion object {
         fun processFileData(
             contents: String,
-            timezone: TimeZone? = null
         ): Pair<List<LocalDateTime>, List<List<Float>>> {
             val tokens = contents.lines()
-            val headers = tokens[0]
             val lines = tokens.drop(1)
             val timestamps: MutableList<LocalDateTime> = mutableListOf()
             val data: MutableList<List<Float>> = mutableListOf()
-            lines.forEachIndexed { i, line ->
+            lines.forEach{ line ->
                 if (line.isNotEmpty()) {
                     val entries = line.split(';').dropLast(1)
                     //entry 0 is not of interest
