@@ -6,33 +6,12 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlin.time.Duration
 
-/*
-import datetime
-import functools
-from abc import abstractmethod
-from enum import Enum
-from functools import partial
-from typing import List, Union, Collection
-
-import numpy as np
-from matplotlib import pyplot as plt
-from matplotlib.dates import DateFormatter
-
-from ecoforest.plotting import get_text_positions, text_plotter, stacked_bar, grouped_bar
-*/
-
-//val TIME_FORMAT = DateFormatter("%H:%M")
-
 private fun  List<Int>.diff(): List<Int> {
     return this.drop(1).zip(this.dropLast(1)).map {(second, first) -> second-first}
 }
 
-private fun List<Number>.mean(weights: List<Number>? = null): Float {
-    return if (weights == null) {
-        this.map { it.toFloat() }.sum() / this.size
-    } else {
-        this.zip(weights).map { (v, w) -> v.toFloat() * w.toFloat() }.sum() / this.size
-    }
+private fun List<Number>.weightedMean(weights: List<Number>): Double {
+    return this.zip(weights).map { (v, w) -> v.toFloat() * w.toFloat() }.average()
 }
 
 inline fun <E> Iterable<E>.indexesOf(predicate: (E) -> Boolean)
@@ -105,11 +84,11 @@ abstract class BaseDataset(
         }
     }
 
-    fun heatingEnergyOfType(types: ChunkClass): Float {
+    fun heatingEnergyOfType(types: Set<ChunkClass>): Float {
         return chunks(types).map { it.totalHeating }.sum()
 //        return sum([c.total_heating for c in chunks(types)])
     }
-    fun consumedEnergyOfType(types: ChunkClass): Float {
+    fun consumedEnergyOfType(types: Set<ChunkClass>): Float {
         return chunks(types).map { it.totalConsumption }.sum()
 //        return sum([c.total_consumption for c in self.chunks(types)])
     }
@@ -126,21 +105,21 @@ abstract class BaseDataset(
         return (heating / consumption).map { if (it.isNaN()) 0f else it }
     }
 
-    fun cop(): Float {
-        return instantaneousCOP().mean()
+    fun cop(): Double {
+        return instantaneousCOP().average()
     }
 
-    fun cop(types: Set<ChunkClass>): Float  {
+    fun cop(types: Set<ChunkClass>): Double  {
         if (totalHeating == 0f) {
-            return 0f
+            return 0.0
         }
 
         val chunks = chunks(types)
         if (chunks.isNotEmpty()) {
             val weights = chunks.map { it.length.inWholeMinutes }
-            return chunks.map { it.cop() }.mean(weights)
+            return chunks.map { it.cop() }.weightedMean(weights)
         } else {
-            return 0f
+            return 0.0
         }
     }
 
