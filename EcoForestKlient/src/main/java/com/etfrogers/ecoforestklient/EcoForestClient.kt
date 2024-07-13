@@ -419,10 +419,10 @@ fun main(){
         debugSSL = false,
     )
 
-    val endpoint = "recepcion_datos_4.cgi"
-    val action = /*2001 if type_ is bool else*/ 2002
-    val page = RegisterPage(5033, 3, RegisterType.INT)
-    val data = mapOf("idOperacion" to action, "dir" to page.firstRegister, "num" to page.numberOfRegisters)
+//    val endpoint = "recepcion_datos_4.cgi"
+//    val action = /*2001 if type_ is bool else*/ 2002
+//    val page = RegisterPage(5033, 3, RegisterType.INT)
+//    val data = mapOf("idOperacion" to action, "dir" to page.firstRegister, "num" to page.numberOfRegisters)
 //    val response = client.apiRequest(endpoint, data)
 //    val response = client.readRegisterPage(REGISTER_PAGES[3])
     val response = client.getCurrentStatus()
