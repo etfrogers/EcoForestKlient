@@ -171,7 +171,7 @@ abstract class BaseDataset(
         val power = Array(timestamps.size) { 0f }
         for (chunk in chunks(types)) {
             val startInd = timestamps.indexOf(chunk.timestamps[0])
-            for (i in startInd..startInd+chunk.size) {
+            for (i in startInd..<startInd+chunk.size) {
                 power[i] += chunk.consumption[i-startInd]
             }
         }
