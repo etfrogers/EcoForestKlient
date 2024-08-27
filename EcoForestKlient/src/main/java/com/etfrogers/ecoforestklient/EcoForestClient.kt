@@ -1,14 +1,15 @@
 package com.etfrogers.ecoforestklient
 
 import kotlinx.datetime.DatePeriod
+import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.format
 import kotlinx.datetime.format.DateTimeComponents
 import kotlinx.datetime.format.char
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
+import kotlinx.datetime.toInstant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -39,6 +40,7 @@ class EcoForestClient(
     private val serialNumber: String,
     private val authKey: String,
     private val timezone: TimeZone = TimeZone.UTC,
+    certificateFile: File? = null,
     debugSSL: Boolean = false
 ) {
 
@@ -51,7 +53,8 @@ class EcoForestClient(
         if (debugSSL) {
             builder = builder.ignoreAllSSLErrors()
         } else {
-            val easyNetCertificate = File("easynet2.ecoforest.es.cer").readText().decodeCertificatePem()
+            val certFile = certificateFile ?: File("easynet2.ecoforest.es.cer")
+            val easyNetCertificate = certFile.readText().decodeCertificatePem()
             val certificates =
                 HandshakeCertificates.Builder()
                     .addTrustedCertificate(easyNetCertificate)
@@ -248,27 +251,28 @@ class EcoForestClient(
 //            raise
         return response
     }
-    companion object {
-        fun processFileData(
-            contents: String,
-        ): Pair<List<LocalDateTime>, List<List<Float>>> {
-            val tokens = contents.lines()
-            val lines = tokens.drop(1)
-            val timestamps: MutableList<LocalDateTime> = mutableListOf()
-            val data: MutableList<List<Float>> = mutableListOf()
-            lines.forEach{ line ->
-                if (line.isNotEmpty()) {
-                    val entries = line.split(';').dropLast(1)
-                    //entry 0 is not of interest
-                    val timestamp = CSV_DATE_FORMAT.parse(entries[1]).toLocalDateTime()
-                    val lineData = entries.drop(2).map { it.toFloat() / 10 }
-                    timestamps.add(timestamp)
-                    data.add(lineData)
-                }
-            }
-            return Pair(timestamps, data.transpose())
-        }
 
+    internal fun processFileData(
+        contents: String,
+    ): Pair<List<Instant>, List<List<Float>>> {
+        val tokens = contents.lines()
+        val lines = tokens.drop(1)
+        val timestamps: MutableList<Instant> = mutableListOf()
+        val data: MutableList<List<Float>> = mutableListOf()
+        lines.forEach{ line ->
+            if (line.isNotEmpty()) {
+                val entries = line.split(';').dropLast(1)
+                //entry 0 is not of interest
+                val timestamp = CSV_DATE_FORMAT
+                    .parse(entries[1])
+                    .toLocalDateTime()
+                    .toInstant(timezone)
+                val lineData = entries.drop(2).map { it.toFloat() / 10 }
+                timestamps.add(timestamp)
+                data.add(lineData)
+            }
+        }
+        return Pair(timestamps, data.transpose())
     }
 }
 

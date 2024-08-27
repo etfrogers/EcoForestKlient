@@ -1,9 +1,9 @@
 package com.etfrogers.ecoforestklient
 
+import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toInstant
+import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Duration
 
 private fun  List<Int>.diff(): List<Int> {
@@ -57,7 +57,7 @@ abstract class BaseDataset(
     )
 
 
-    abstract val timestamps: List<LocalDateTime>
+    abstract val timestamps: List<Instant>
     abstract val data: List<List<Float>>
     abstract val heating: List<Float>
     abstract val consumption: List<Float>
@@ -75,7 +75,7 @@ abstract class BaseDataset(
 
 
     val length: Duration
-        get() =  timestamps.last().toInstant(timezone) - timestamps[0].toInstant(timezone)
+        get() =  timestamps.last() - timestamps.first()
 
     companion object {
         fun totalPower(series: List<Float>): Float {
@@ -181,7 +181,7 @@ abstract class BaseDataset(
 
 open class Dataset(
     timezone: TimeZone,
-    override val timestamps: List<LocalDateTime>,
+    override val timestamps: List<Instant>,
     final override val data: List<List<Float>>,
 ): BaseDataset(timezone) {
     override val cooling = data[MAPPING["cooling"]!!]
@@ -223,7 +223,7 @@ class ChunkTypeError: Exception()
 
 class DataChunk(
     timezone: TimeZone,
-    timestamps: List<LocalDateTime>,
+    timestamps: List<Instant>,
     data: List<List<Float>>
 ) : Dataset(timezone, timestamps, data) {
 
@@ -294,7 +294,7 @@ class DataChunk(
 
 class DayData(
     timezone: TimeZone,
-    timestamps: List<LocalDateTime>,
+    timestamps: List<Instant>,
     data: List<List<Float>>
 ): Dataset(timezone, timestamps, data) {
 //    fun __init__(self, timestamps, full_data):
@@ -399,7 +399,7 @@ open class CompositeDataSet(
     val datasets: List<DayData>
 ): BaseDataset(timezone) { //, metaclass=CompositeMeta):
 
-    override val timestamps: List<LocalDateTime>
+    override val timestamps: List<Instant>
         get() = datasets.map { it.timestamps }.flatten() //[ds.timestamps for ds in self.datasets])
 
     override val data: List<List<Float>>
@@ -430,11 +430,11 @@ open class CompositeDataSet(
 }
 
 class MonthDataSet(
-    timezone: TimeZone,
+    val timezone: TimeZone,
     datasets: List<DayData>
 ): CompositeDataSet(timezone, datasets){
     fun days(): List<LocalDate>{
-        return datasets.map { it.timestamps[0].date }
+        return datasets.map { it.timestamps[0].toLocalDateTime(timeZone = timezone).date }
     }
 }
 /*

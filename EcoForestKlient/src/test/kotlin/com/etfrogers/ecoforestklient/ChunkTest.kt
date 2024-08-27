@@ -9,12 +9,20 @@ import kotlin.test.assertEquals
 
 internal class ChunkTest {
 
+    private val client = EcoForestClient(
+        "",
+        "",
+        "",
+        "",
+        timezone = TimeZone.of("Europe/London"),
+        certificateFile = File("../../../../../../../easynet2.ecoforest.es.cer")
+    )
 //    private val testSample: Sample = Sample()
 
     @Test
     fun `test chunks 01-04-2024`() {
         val str = File("2024-04-01.csv").readText()
-        val (timestamps, data) = EcoForestClient.processFileData(str)
+        val (timestamps, data) = client.processFileData(str)
         val day = DayData(TimeZone.UTC, timestamps, data)
         val firstNonZero = day.consumption.first { it > 0 }
         val chunks = day.chunks()
@@ -33,7 +41,7 @@ internal class ChunkTest {
     @Test
     fun `test chunks 11-03-2024`() {
         val str = File("2024-03-11.csv").readText()
-        val (timestamps, data) = EcoForestClient.processFileData(str)
+        val (timestamps, data) = client.processFileData(str)
         val day = DayData(TimeZone.UTC, timestamps, data)
         val chunks = day.chunks()
         assertEquals(10, chunks.size)
@@ -46,7 +54,7 @@ internal class ChunkTest {
     @Test
     fun `test chunks 13-03-2024`() {
         val str = File("2024-03-13.csv").readText()
-        val (timestamps, data) = EcoForestClient.processFileData(str)
+        val (timestamps, data) = client.processFileData(str)
         val day = DayData(TimeZone.UTC, timestamps, data)
         val chunks = day.chunks()
         assertEquals(7, chunks.size)
@@ -59,7 +67,7 @@ internal class ChunkTest {
     @Test
     fun `test chunks 14-03-2024`() {
         val str = File("2024-03-14.csv").readText()
-        val (timestamps, data) = EcoForestClient.processFileData(str)
+        val (timestamps, data) = client.processFileData(str)
         val day = DayData(TimeZone.UTC, timestamps, data)
         val chunks = day.chunks()
         assertEquals(6, chunks.size)
